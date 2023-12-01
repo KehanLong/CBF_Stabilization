@@ -16,15 +16,18 @@ class UnicycleStabilizer:
         self.max_omega = 2.0
         self.dt = dt  # time step
         
-    def Full_CLF_QP(self, current_state, desired_state, rateV):
+        self.prev_v = 0
+        self.prev_omega = 0
+        
+    def Full_CLF_QP(self, current_state, desired_state, rateV = 1.0):
         x, y, theta = current_state
         x_d, y_d, theta_d = desired_state
 
         # Quadratic Lyapunov function
-        V = 1 * (x - x_d)**2 + 1 * (y - y_d)**2 + (theta - theta_d)**2
+        V = 3 * (x - x_d)**2 + 3 * (y - y_d)**2 + (theta - theta_d)**2
 
         # Derivative of V
-        dVdx = 2 * np.array([1 * (x - x_d), 1 * (y - y_d), theta - theta_d])
+        dVdx = 2 * np.array([3 * (x - x_d), 3 * (y - y_d), theta - theta_d])
 
         # Control inputs
         v = cp.Variable()
@@ -40,7 +43,10 @@ class UnicycleStabilizer:
         angular_gain = dVdx[2] 
 
         # Constraints for decrease rate of V
-        baseline_constraints = [dot_V + rateV * V <= 0, delta >= 0]
+        
+        baseline_constraints = [delta >= 0]
+        
+        baseline_constraints.append(dot_V + rateV * V <= delta)
         
         
         #append some control constraints:
@@ -52,9 +58,9 @@ class UnicycleStabilizer:
         
         # idea: add the 'bad' state set as a CBF unsafe set 
         
-        eps = 0.1
+        eps = 10
         
-        rateh = 10.0
+        rateh =0.5
         
         p3 = 1e3
         
@@ -101,36 +107,63 @@ class UnicycleStabilizer:
         '''
         new idea of defining h
         '''
-        cos_hat = (x_d - x) / np.sqrt((x-x_d)**2 + (y-y_d)**2)
+        cos_hat = (x_d - x) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
         
         
-        sin_hat = (y_d - y) / np.sqrt((x-x_d)**2 + (y-y_d)**2)
+        sin_hat = (y_d - y) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
+        
+        print('cos_hat:', cos_hat)
+        
+        print('sin_hat:', sin_hat)
         
 
         
         # Partial derivatives of cos_hat and sin_hat w.r.t x and y
-        d_cos_hat_dx =  - ((y - y_d)**2) / ((x - x_d)**2 + (y - y_d)**2)**(3/2)
-        d_sin_hat_dx = (x - x_d) * (y - y_d) / ((x - x_d)**2 + (y - y_d)**2)**(3/2)
+        # Derivatives of the numerator and denominator for cos_hat w.r.t x
+        exp1 = x_d - x
+        du_dx = -1
+        exp2 = np.sqrt((x_d-x)**2 + (y_d-y)**2)
+        dv_dx = (x - x_d) / exp2
+        
+        # Derivative of cos_hat w.r.t x
+        d_cos_hat_dx = (du_dx * exp2 - exp1 * dv_dx) / (exp2**2)
+        
+        # Similarly, compute d_sin_hat_dx, d_cos_hat_dy, and d_sin_hat_dy
+        dv_dy = -(y_d - y) / exp2  # Derivative of the denominator for sin_hat w.r.t y
+        
+        # Derivative of sin_hat w.r.t x
+        d_sin_hat_dx = -dv_dx * (y_d - y) / (exp2**2)
+        
+        # Derivative of cos_hat w.r.t y
+        d_cos_hat_dy = -dv_dy * (x_d - x) / (exp2**2)
+        
+        # Derivative of sin_hat w.r.t y
+        exp1 = y_d - y
+        du_dy = -1
+        d_sin_hat_dy = (du_dy * exp2 - exp1 * dv_dy) / (exp2**2)
 
-        d_cos_hat_dy = (x - x_d) * (y - y_d) / ((x - x_d)**2 + (y - y_d)**2)**(3/2)
-        d_sin_hat_dy = - ((x - x_d)**2) / ((x - x_d)**2 + (y - y_d)**2)**(3/2)
 
         
-        h = (theta - theta_d) ** 2 - eps * (cos_hat - np.cos(theta_d))**2 - eps * (sin_hat - np.sin(theta_d))**2
+        #h = - (theta - theta_d) * (theta - theta_d) - eps * (cos_hat - np.cos(theta_d))**2 - eps * (sin_hat - np.sin(theta_d))**2
         
-        dh_dx =  -eps * 2 * cos_hat * d_cos_hat_dx - eps * 2 * sin_hat * d_sin_hat_dx
-        dh_dy =  -eps * 2 * cos_hat * d_cos_hat_dy - eps * 2 * sin_hat * d_sin_hat_dy
+        h = - eps * (cos_hat - np.cos(theta_d))**2 - eps * (sin_hat - np.sin(theta_d))**2
         
-        dh_dtheta = 2 * (theta - theta_d)
+        dh_dx =  -eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dx - eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dx
+        dh_dy =  -eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dy - eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dy
+        
+        #dh_dtheta = - 2 * (theta - theta_d)
+        
+        dh_dtheta = 0
         
         
-        
+        #print('dh_dx:', dh_dx)
         
         dhdx = np.array([dh_dx, dh_dy, dh_dtheta])
         
         dot_h = dhdx @ np.array([v * np.cos(theta), v * np.sin(theta), omega])
         
-        baseline_constraints.append(dot_h + rateh * h >= -delta) 
+        baseline_constraints.append(dot_h + rateh * h >= 0) 
+        
         
         
         
@@ -139,9 +172,11 @@ class UnicycleStabilizer:
         print('lyapunov:', V)
 
         # Objective: Minimize control effort
-        objective = cp.Minimize( cp.square(v - self.max_v) + cp.square(omega) + p3 * cp.square(delta)) 
+        #objective = cp.Minimize( 10 * cp.square(self.prev_v - v) + 10 * cp.square(self.prev_omega - omega)  + cp.square(v - self.max_v) + cp.square(omega) + p3 * cp.square(delta)) 
         
         #objective = cp.Minimize(p3 * cp.square(delta)) 
+        
+        objective = cp.Minimize(cp.square(v) + cp.square(omega) + p3 * cp.square(delta))
         
         constraints = baseline_constraints 
 
@@ -153,6 +188,8 @@ class UnicycleStabilizer:
         
         print('relax:', delta.value)
         
+        self.prev_v = v.value
+        self.prev_omega = omega.value
         
         
         
@@ -201,7 +238,7 @@ class UnicycleStabilizer:
 
 def main():
     # Time step
-    dt = 0.02
+    dt = 0.05
     rateV = 1.0  # Design parameter for the rate of decrease of the Lyapunov function
 
     # Create an instance of UnicycleStabilizer
@@ -209,9 +246,9 @@ def main():
 
     # Initial and desired states
     
-    current_state = np.array([0., 0., 0], dtype=float)
+    current_state = np.array([0., 0., np.pi/2], dtype=float)
 
-    desired_state = np.array([3., 3., np.pi/2], dtype=float)  # x_d, y_d, theta_d
+    desired_state = np.array([3., 3., 0], dtype=float)  # x_d, y_d, theta_d
 
     # Lists to store simulation data for plotting
     x_list = []
@@ -229,7 +266,7 @@ def main():
     # Simulation loop
     for step in range(1000):
         # Compute control inputs using one of the methods
-        v, omega, linear_gain, angular_gain, delta = stabilizer.Full_CLF_QP(current_state, desired_state, rateV)
+        v, omega, linear_gain, angular_gain, delta = stabilizer.Full_CLF_QP(current_state, desired_state)
         # v, omega = stabilizer.Pos_CLF_QP(current_state, desired_state[:2], rateV)
     
 
