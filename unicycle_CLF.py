@@ -24,10 +24,10 @@ class UnicycleStabilizer:
         x_d, y_d, theta_d = desired_state
 
         # Quadratic Lyapunov function
-        V = 3 * (x - x_d)**2 + 3 * (y - y_d)**2 + (theta - theta_d)**2
+        V = (x - x_d)**2 +  (y - y_d)**2 + (theta - theta_d)**2
 
         # Derivative of V
-        dVdx = 2 * np.array([3 * (x - x_d), 3 * (y - y_d), theta - theta_d])
+        dVdx = 2 * np.array([(x - x_d), (y - y_d), theta - theta_d])
 
         # Control inputs
         v = cp.Variable()
@@ -60,9 +60,9 @@ class UnicycleStabilizer:
         
         eps = 10
         
-        rateh =0.5
+        rateh =0.1
         
-        p3 = 1e3
+        p3 = 1e2
         
         #h = linear_gain ** 2 + angular_gain **2 - eps
         
@@ -112,9 +112,9 @@ class UnicycleStabilizer:
         
         sin_hat = (y_d - y) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
         
-        print('cos_hat:', cos_hat)
+        #print('cos_hat:', cos_hat)
         
-        print('sin_hat:', sin_hat)
+        #print('sin_hat:', sin_hat)
         
 
         
@@ -196,41 +196,41 @@ class UnicycleStabilizer:
 
         return v.value, omega.value, linear_gain, angular_gain, delta.value
 
-    def Pos_CLF_QP(self, current_state, desired_pos, rateV):
-        x, y, theta = current_state
-        x_d, y_d = desired_pos
+    # def Pos_CLF_QP(self, current_state, desired_pos, rateV):
+    #     x, y, theta = current_state
+    #     x_d, y_d = desired_pos
 
-        # Quadratic Lyapunov function for position only
-        V_pos = (x - x_d)**2 + (y - y_d)**2
+    #     # Quadratic Lyapunov function for position only
+    #     V_pos = (x - x_d)**2 + (y - y_d)**2
 
-        # Derivative of V_pos
-        dVdx_pos = 2 * np.array([x - x_d, y - y_d])
+    #     # Derivative of V_pos
+    #     dVdx_pos = 2 * np.array([x - x_d, y - y_d])
 
-        # Control inputs
-        v = cp.Variable()
-        omega = cp.Variable()
+    #     # Control inputs
+    #     v = cp.Variable()
+    #     omega = cp.Variable()
 
-        # Lie derivative of V_pos
-        dot_V = dVdx_pos @ np.array([v * np.cos(theta), v * np.sin(theta)])
+    #     # Lie derivative of V_pos
+    #     dot_V = dVdx_pos @ np.array([v * np.cos(theta), v * np.sin(theta)])
 
-        # Constraints for decrease rate of V_pos
-        constraints = [dot_V + rateV * V_pos <= 0]
+    #     # Constraints for decrease rate of V_pos
+    #     constraints = [dot_V + rateV * V_pos <= 0]
 
-        # Objective: Minimize control effort
-        objective = cp.Minimize( cp.square(v - self.max_v) + cp.square(omega))  
+    #     # Objective: Minimize control effort
+    #     objective = cp.Minimize( cp.square(v - self.max_v) + cp.square(omega))  
 
-        # Setup and solve the QP
-        problem = cp.Problem(objective, constraints)
+    #     # Setup and solve the QP
+    #     problem = cp.Problem(objective, constraints)
         
-        problem.solve()
+    #     problem.solve()
         
-        #problem.solve(solver='SCS', verbose=False)
+    #     #problem.solve(solver='SCS', verbose=False)
         
-        #problem.solve()
+    #     #problem.solve()
         
 
 
-        return v.value, omega.value
+    #     return v.value, omega.value
         
         
 
@@ -238,7 +238,7 @@ class UnicycleStabilizer:
 
 def main():
     # Time step
-    dt = 0.05
+    dt = 0.02
     rateV = 1.0  # Design parameter for the rate of decrease of the Lyapunov function
 
     # Create an instance of UnicycleStabilizer
@@ -246,9 +246,9 @@ def main():
 
     # Initial and desired states
     
-    current_state = np.array([0., 0., np.pi/2], dtype=float)
+    current_state = np.array([0., 0., 0], dtype=float)
 
-    desired_state = np.array([3., 3., 0], dtype=float)  # x_d, y_d, theta_d
+    desired_state = np.array([3., 3., np.pi/2], dtype=float)  # x_d, y_d, theta_d
 
     # Lists to store simulation data for plotting
     x_list = []
@@ -295,7 +295,7 @@ def main():
         angular_gain_list.append(angular_gain)
     
         # Stopping condition
-        if np.linalg.norm(current_state - desired_state) < 0.2:
+        if np.linalg.norm(current_state - desired_state) < 0.05:
             print("Reached the desired state!")
             break
 
