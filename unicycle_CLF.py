@@ -10,8 +10,64 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
+import matplotlib.patches as mpatches
+
+def plot_unicycle_trajectories(initial_state, goal_state, epsilon, dt, steps):
+    stabilizer = UnicycleStabilizer(epsilon, dt)
+    state_traj, barrier_functions, Lyapunov_functions, relax_values, controls = stabilizer.simulate(initial_state, goal_state, steps)
+    
+    # Plotting the trajectory of the unicycle
+    plt.figure(figsize=(8, 6))
+    plt.plot(np.array(state_traj)[:, 0], np.array(state_traj)[:, 1], 'b-', linewidth=2, label='Trajectory')
+    plt.scatter([initial_state[0]], [initial_state[1]], color='g', marker='o', label='Start')
+    plt.scatter([goal_state[0]], [goal_state[1]], color='r', marker='x', label='Goal')
+    
+    plt.xlabel('X Position', fontsize=14)
+    plt.ylabel('Y Position', fontsize=14)
+    plt.title('Unicycle Trajectory', fontsize=16)
+    plt.legend()
+    plt.grid(True)
+    plt.tight_layout()
+    plt.show()
+    
+    # Plotting function values and control inputs
+    plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values, controls)
+
+def plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values, control_inputs):
+    time_steps = np.arange(len(barrier_functions))
+
+    # Extract linear and angular velocities from control_inputs
+    linear_velocities = [control[0] for control in control_inputs]
+    angular_velocities = [control[1] for control in control_inputs]
+
+    plt.figure(figsize=(12, 8))
+
+    # Plot Barrier and Lyapunov Functions
+    plt.subplot(2, 1, 1)
+    plt.plot(time_steps, barrier_functions, 'g--', label='Barrier Function', linewidth=2)
+    plt.plot(time_steps, Lyapunov_functions, 'b-', label='Lyapunov Function', linewidth=2)
+    plt.plot(time_steps, relax_values, 'r-.', label='Relaxation', linewidth=2)
+    plt.xlabel('Time Steps', fontsize=14)
+    plt.ylabel('Function Value', fontsize=14)
+    plt.title('Function Values Over Time', fontsize=16)
+    plt.legend(fontsize=12)
+
+    # Plot Control Inputs: Linear and Angular Velocity
+    plt.subplot(2, 1, 2)
+    plt.plot(time_steps, linear_velocities, 'c-', label='Linear Velocity', linewidth=2)
+    plt.plot(time_steps, angular_velocities, 'm-', label='Angular Velocity', linewidth=2)
+    plt.xlabel('Time Steps', fontsize=14)
+    plt.ylabel('Control Input', fontsize=14)
+    plt.title('Control Input Over Time', fontsize=16)
+    plt.legend(fontsize=12)
+
+    plt.tight_layout()
+    plt.savefig('unicycle_function_values_and_controls_combined.png', dpi=300)
+    plt.show()
+
+
 class UnicycleStabilizer:
-    def __init__(self, dt):
+    def __init__(self, epsilon, dt):
         self.max_v = 1.0
         self.max_omega = 2.0
         self.dt = dt  # time step
@@ -19,7 +75,26 @@ class UnicycleStabilizer:
         self.prev_v = 0
         self.prev_omega = 0
         
-    def Full_CLF_QP(self, current_state, desired_state, rateV = 1.0):
+        self.eps = epsilon
+        
+    def dynamics(self, state, linear_v, angular_w):
+        # Unpack the state
+        x, y, theta = state
+        
+        # Equation of motion for inverted pendulum
+        theta_dot = angular_w
+        new_theta = theta + theta_dot * self.dt
+        
+        x_dot = linear_v * np.cos(new_theta)
+        y_dot = linear_v * np.sin(new_theta)
+
+        # Update the state
+        new_x = x + x_dot * self.dt
+        new_y = y + y_dot * self.dt
+        
+        return np.array([new_x, new_y, new_theta])
+        
+    def CLF_CBF_QP(self, current_state, desired_state, rateV = 1.0, rateh = 0.05):
         x, y, theta = current_state
         x_d, y_d, theta_d = desired_state
 
@@ -27,7 +102,7 @@ class UnicycleStabilizer:
         V = (x - x_d)**2 +  (y - y_d)**2 + (theta - theta_d)**2
 
         # Derivative of V
-        dVdx = 2 * np.array([(x - x_d), (y - y_d), theta - theta_d])
+        dVdstate = 2 * np.array([(x - x_d), (y - y_d), theta - theta_d])
 
         # Control inputs
         v = cp.Variable()
@@ -36,11 +111,11 @@ class UnicycleStabilizer:
         delta = cp.Variable()
 
         # Lie derivative of V
-        dot_V = dVdx @ np.array([v * np.cos(theta), v * np.sin(theta), omega])
+        dot_V = dVdstate @ np.array([v * np.cos(theta), v * np.sin(theta), omega])
         
         #compute and plot \nabla V(x) * g(x)
-        linear_gain = dVdx[:2] @ np.array([np.cos(theta), np.sin(theta)])
-        angular_gain = dVdx[2] 
+        linear_gain = dVdstate[:2] @ np.array([np.cos(theta), np.sin(theta)])
+        angular_gain = dVdstate[2] 
 
         # Constraints for decrease rate of V
         
@@ -49,134 +124,97 @@ class UnicycleStabilizer:
         baseline_constraints.append(dot_V + rateV * V <= delta)
         
         
-        #append some control constraints:
-        additional_constraints = [
-            cp.abs(v) <= self.max_v,
-            cp.abs(omega) <= self.max_omega
+        #optional: some control constraints:
+        # additional_constraints = [
+        #     cp.abs(v) <= self.max_v,
+        #     cp.abs(omega) <= self.max_omega
             
-        ]
+        # ]
         
         # idea: add the 'bad' state set as a CBF unsafe set 
         
-        eps = 10
-        
-        rateh =0.1
-        
-        p3 = 1e2
-        
-        #h = linear_gain ** 2 + angular_gain **2 - eps
         
         
         
+        # '''
+        # h: the only safe set is the line defined by the orientation and position of the desired state
+        # '''
+        # cos_hat = (x_d - x) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
         
         
-        # Compute partial derivatives of linear_gain with respect to x, y
-        # partial_linear_gain_x = dVdx[0] * np.cos(theta)
-        # partial_linear_gain_y = dVdx[1] * np.sin(theta)
+        # sin_hat = (y_d - y) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
         
-        # # Compute partial derivative of linear_gain with respect to theta
-        # partial_linear_gain_theta = -dVdx[0] * np.sin(theta) + dVdx[1] * np.cos(theta)
         
-        # # Compute partial derivative of angular_gain with respect to theta
-        # partial_angular_gain_theta = dVdx[2]
+        # # Partial derivatives of cos_hat and sin_hat w.r.t x and y
+        # # Derivatives of the numerator and denominator for cos_hat w.r.t x
+        # exp1 = x_d - x
+        # du_dx = -1
+        # exp2 = np.sqrt((x_d-x)**2 + (y_d-y)**2)
+        # dv_dx = (x - x_d) / exp2
         
-        # # Now compute the derivatives of h with respect to the state variables
-        # dh_dx = 2 * linear_gain * partial_linear_gain_x
-        # dh_dy = 2 * linear_gain * partial_linear_gain_y
-        # dh_dtheta = 2 * linear_gain * partial_linear_gain_theta + 2 * angular_gain * partial_angular_gain_theta
+        # # Derivative of cos_hat w.r.t x
+        # d_cos_hat_dx = (du_dx * exp2 - exp1 * dv_dx) / (exp2**2)
         
-        # # Combine them into the gradient of h
-        # dhdx = np.array([dh_dx, dh_dy, dh_dtheta])
+        # # Similarly, compute d_sin_hat_dx, d_cos_hat_dy, and d_sin_hat_dy
+        # dv_dy = -(y_d - y) / exp2  # Derivative of the denominator for sin_hat w.r.t y
+        
+        # # Derivative of sin_hat w.r.t x
+        # d_sin_hat_dx = -dv_dx * (y_d - y) / (exp2**2)
+        
+        # # Derivative of cos_hat w.r.t y
+        # d_cos_hat_dy = -dv_dy * (x_d - x) / (exp2**2)
+        
+        # # Derivative of sin_hat w.r.t y
+        # exp1 = y_d - y
+        # du_dy = -1
+        # d_sin_hat_dy = (du_dy * exp2 - exp1 * dv_dy) / (exp2**2)
 
         
-        #dot_h = dhdx @ np.array([v * np.cos(theta), v * np.sin(theta), omega])
+        # h = - self.eps * (cos_hat - np.cos(theta_d))**2 - self.eps * (sin_hat - np.sin(theta_d))**2
+        
+        # dh_dx =  -self.eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dx - self.eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dx
+        # dh_dy =  -self.eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dy - self.eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dy
         
         
-        '''
-        one idea that works
-        '''
-        
-        # h = x_d - x + 0.3
-        
-        # dh_dx = -1
-        # dh_dy = 0
         # dh_dtheta = 0
         
-
+        
         
         '''
-        new idea of defining h
+        paper draft idea of defining h:
         '''
-        cos_hat = (x_d - x) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
         
         
-        sin_hat = (y_d - y) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
+        h = self.eps - (-(x - x_d) * np.sin(theta) + (y - y_d) * np.sin(theta))**2
         
-        #print('cos_hat:', cos_hat)
-        
-        #print('sin_hat:', sin_hat)
-        
-
-        
-        # Partial derivatives of cos_hat and sin_hat w.r.t x and y
-        # Derivatives of the numerator and denominator for cos_hat w.r.t x
-        exp1 = x_d - x
-        du_dx = -1
-        exp2 = np.sqrt((x_d-x)**2 + (y_d-y)**2)
-        dv_dx = (x - x_d) / exp2
-        
-        # Derivative of cos_hat w.r.t x
-        d_cos_hat_dx = (du_dx * exp2 - exp1 * dv_dx) / (exp2**2)
-        
-        # Similarly, compute d_sin_hat_dx, d_cos_hat_dy, and d_sin_hat_dy
-        dv_dy = -(y_d - y) / exp2  # Derivative of the denominator for sin_hat w.r.t y
-        
-        # Derivative of sin_hat w.r.t x
-        d_sin_hat_dx = -dv_dx * (y_d - y) / (exp2**2)
-        
-        # Derivative of cos_hat w.r.t y
-        d_cos_hat_dy = -dv_dy * (x_d - x) / (exp2**2)
-        
-        # Derivative of sin_hat w.r.t y
-        exp1 = y_d - y
-        du_dy = -1
-        d_sin_hat_dy = (du_dy * exp2 - exp1 * dv_dy) / (exp2**2)
+        # Calculating the partial derivatives
+        dh_dx = -2 * (- (x - x_d) * np.sin(theta) + (y - y_d) * np.cos(theta)) * (-np.sin(theta))
+        dh_dy = -2 * (- (x - x_d) * np.sin(theta) + (y - y_d) * np.cos(theta)) * np.cos(theta)
+        dh_dtheta = -2 * (- (x - x_d) * np.sin(theta) + (y - y_d) * np.cos(theta)) * (-(x - x_d) * np.cos(theta) - (y - y_d) * np.sin(theta))
 
 
+        '''
+        add the safety constraint
+        '''
+
+
+        dhdstate = np.array([dh_dx, dh_dy, dh_dtheta]) 
         
-        #h = - (theta - theta_d) * (theta - theta_d) - eps * (cos_hat - np.cos(theta_d))**2 - eps * (sin_hat - np.sin(theta_d))**2
-        
-        h = - eps * (cos_hat - np.cos(theta_d))**2 - eps * (sin_hat - np.sin(theta_d))**2
-        
-        dh_dx =  -eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dx - eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dx
-        dh_dy =  -eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dy - eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dy
-        
-        #dh_dtheta = - 2 * (theta - theta_d)
-        
-        dh_dtheta = 0
+        dot_h = dhdstate @ np.array([v * np.cos(theta), v * np.sin(theta), omega])
         
         
-        #print('dh_dx:', dh_dx)
-        
-        dhdx = np.array([dh_dx, dh_dy, dh_dtheta])
-        
-        dot_h = dhdx @ np.array([v * np.cos(theta), v * np.sin(theta), omega])
         
         baseline_constraints.append(dot_h + rateh * h >= 0) 
         
-        
-        
-        
-        print('barrier value:', h)
-        
-        print('lyapunov:', V)
+    
 
         # Objective: Minimize control effort
-        #objective = cp.Minimize( 10 * cp.square(self.prev_v - v) + 10 * cp.square(self.prev_omega - omega)  + cp.square(v - self.max_v) + cp.square(omega) + p3 * cp.square(delta)) 
         
-        #objective = cp.Minimize(p3 * cp.square(delta)) 
+        p3 = 1e2
         
-        objective = cp.Minimize(cp.square(v) + cp.square(omega) + p3 * cp.square(delta))
+        objective = cp.Minimize(cp.square(v - self.prev_v) + cp.square(omega - self.prev_omega) + p3 * cp.square(delta))
+        
+        #objective = cp.Minimize(p3 * cp.square(delta))
         
         constraints = baseline_constraints 
 
@@ -186,185 +224,70 @@ class UnicycleStabilizer:
         #problem.solve()
         problem.solve(solver='SCS', verbose=False)
         
-        print('relax:', delta.value)
         
         self.prev_v = v.value
         self.prev_omega = omega.value
+
+        return v.value, omega.value, linear_gain, angular_gain, delta.value, h, V
+    
+    def simulate(self, initial_state, desired_state, steps):
+        state = initial_state
         
+        state_traj = []
         
+        barrier_functions = []
         
-
-        return v.value, omega.value, linear_gain, angular_gain, delta.value
-
-    # def Pos_CLF_QP(self, current_state, desired_pos, rateV):
-    #     x, y, theta = current_state
-    #     x_d, y_d = desired_pos
-
-    #     # Quadratic Lyapunov function for position only
-    #     V_pos = (x - x_d)**2 + (y - y_d)**2
-
-    #     # Derivative of V_pos
-    #     dVdx_pos = 2 * np.array([x - x_d, y - y_d])
-
-    #     # Control inputs
-    #     v = cp.Variable()
-    #     omega = cp.Variable()
-
-    #     # Lie derivative of V_pos
-    #     dot_V = dVdx_pos @ np.array([v * np.cos(theta), v * np.sin(theta)])
-
-    #     # Constraints for decrease rate of V_pos
-    #     constraints = [dot_V + rateV * V_pos <= 0]
-
-    #     # Objective: Minimize control effort
-    #     objective = cp.Minimize( cp.square(v - self.max_v) + cp.square(omega))  
-
-    #     # Setup and solve the QP
-    #     problem = cp.Problem(objective, constraints)
+        Lyapunov_functions = []
         
-    #     problem.solve()
+        relax_values = []
         
-    #     #problem.solve(solver='SCS', verbose=False)
-        
-    #     #problem.solve()
-        
+        control_inputs = []
+
+        for step in range(steps):
+            
+            state_traj.append(state)
+            
+            linear_v, angular_w , _, _, delta, h, V = self.CLF_CBF_QP(state, desired_state)
+
+            state = self.dynamics(state, linear_v, angular_w)
+            
+            barrier_functions.append(h)
+            
+            relax_values.append(delta)
+            
+            
+            Lyapunov_functions.append(V)
+            
+            control_inputs.append([linear_v, angular_w])
+
+            # Stopping condition
+            if np.linalg.norm(state - desired_state) < 0.1:
+                print("Car Reached the desired state!")
+                break
+
+        return state_traj, barrier_functions, Lyapunov_functions, relax_values, control_inputs
 
 
-    #     return v.value, omega.value
-        
-        
 
 
 
 def main():
-    # Time step
-    dt = 0.02
-    rateV = 1.0  # Design parameter for the rate of decrease of the Lyapunov function
-
-    # Create an instance of UnicycleStabilizer
-    stabilizer = UnicycleStabilizer(dt)
 
     # Initial and desired states
     
-    current_state = np.array([0., 0., 0], dtype=float)
-
-    desired_state = np.array([3., 3., np.pi/2], dtype=float)  # x_d, y_d, theta_d
-
-    # Lists to store simulation data for plotting
-    x_list = []
-    y_list = []
-    theta_list = []
-    v_list = []
-    omega_list = []
-    time_list = []
+    epsilon = 0.2
     
-    linear_gain_list = []
-    angular_gain_list = []
+    dt = 0.02
+    steps = 500
     
-    delta_list = []
+    initial_state = np.array([0., 0., 0], dtype=float)
 
-    # Simulation loop
-    for step in range(1000):
-        # Compute control inputs using one of the methods
-        v, omega, linear_gain, angular_gain, delta = stabilizer.Full_CLF_QP(current_state, desired_state)
-        # v, omega = stabilizer.Pos_CLF_QP(current_state, desired_state[:2], rateV)
-    
-
-
-        # Update the state using the computed control inputs
-        current_state[0] += v * np.cos(current_state[2]) * dt
-
-        
-        #print(temp)
-        current_state[1] += v * np.sin(current_state[2]) * dt
-        current_state[2] += omega * dt
-        
-        
-    
-        # Append to lists for plotting
-        x_list.append(current_state[0])
-        y_list.append(current_state[1])
-        theta_list.append(current_state[2])
-        v_list.append(v)  
-        omega_list.append(omega)  
-        time_list.append(step  * dt)
-        
-        delta_list.append(delta)
-        
-        linear_gain_list.append(linear_gain)
-        angular_gain_list.append(angular_gain)
-    
-        # Stopping condition
-        if np.linalg.norm(current_state - desired_state) < 0.05:
-            print("Reached the desired state!")
-            break
-
-
-
-    arrow_scale = 10
-    arrow_width = 0.015
-    # Plot the robot trajectory
-    plt.figure(figsize=(18, 6), dpi = 300)
-    plt.subplot(1, 3, 1)
-    plt.plot(x_list, y_list, label='Trajectory')
-    plt.plot(desired_state[0], desired_state[1], 'ro', label='Desired Position')
-    plt.quiver(x_list[-1], y_list[-1], np.cos(theta_list[-1]), np.sin(theta_list[-1]), scale=arrow_scale, color='r', width=arrow_width)
-    plt.title('Robot Trajectory')
-    plt.xlabel('x position')
-    plt.ylabel('y position')
-    plt.grid(True)
-    plt.legend()
-
-    # Plot the control inputs
-    plt.subplot(1, 3, 2)
-    plt.plot(time_list, v_list, label='v (linear velocity)')
-    plt.plot(time_list, omega_list, label='omega (angular velocity)')
-    plt.title('Control Inputs over Time')
-    plt.xlabel('Time')
-    plt.ylabel('Control Input')
-    plt.grid(True)
-    plt.legend()
+    goal_state = np.array([3., 1., np.pi/2], dtype=float)
     
     
-    #plot for orientation
-    plt.subplot(1, 3, 3)
-    plt.plot(time_list, theta_list, label='Theta (orientation)')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Theta (rad)')
-    plt.title('Orientation Over Time')
-    plt.legend()
     
+    plot_unicycle_trajectories(initial_state, goal_state, epsilon, dt, steps)
 
-    plt.tight_layout()
-    plt.savefig('robot_traj', dpi = 300)
-
-    plt.figure(dpi = 150)
-    plt.plot(time_list, linear_gain_list, label='Linear Gain')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Linear Gain')
-    plt.title('Linear Gain Over Time')
-    plt.legend()
-    plt.savefig('linear_gain', dpi=300)
-    
-    # Plot for angular gain
-    plt.figure(dpi = 150)
-    plt.plot(time_list, angular_gain_list, label='Angular Gain')
-    plt.xlabel('Time (s)')
-    plt.ylabel('Angular Gain')
-    plt.title('Angular Gain Over Time')
-    plt.legend()
-    plt.savefig('angular_gain', dpi=300)
-    plt.show()
-    
-    # Plot for angular gain
-    plt.figure(dpi = 150)
-    plt.plot(time_list, delta_list, label='barrier penalty')
-    plt.xlabel('Time (s)')
-    plt.ylabel('barrier pennalty')
-    plt.title('barrier penalty over time')
-    plt.legend()
-    plt.savefig('barrier_pnality', dpi=300)
-    plt.show()
         
 
 if __name__ == "__main__":
