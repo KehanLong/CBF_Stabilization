@@ -89,17 +89,24 @@ class PolynomialSystemStabilizer:
         self.psi = psi
 
     def dynamics(self, state, control):
-        x1, x2 = state
-        u = control
+        dt = self.dt
         
-        x1_dot = u
-        x2_dot = -x1 + (1/6) * x1**3 - u
+        def f(current_state, u):
+            x1, x2 = current_state
+            x1_dot = u
+            x2_dot = -x1 + (1/6) * x1**3 - u
+            return np.array([x1_dot, x2_dot])
         
-        # Update the state
-        new_x1 = x1 + x1_dot * self.dt
-        new_x2 = x2 + x2_dot * self.dt
-
-        return np.array([new_x1, new_x2])
+        # Compute RK4 intermediate steps
+        k1 = f(state, control)
+        k2 = f(state + 0.5 * dt * k1, control)
+        k3 = f(state + 0.5 * dt * k2, control)
+        k4 = f(state + dt * k3, control)
+        
+        # Update the state using RK4 formula
+        new_state = state + (dt / 6) * (k1 + 2*k2 + 2*k3 + k4)
+        
+        return new_state
 
     def CLF_CBF_QP(self, current_state, desired_state, rateV = 1.0):
         x1, x2 = current_state
@@ -145,14 +152,21 @@ class PolynomialSystemStabilizer:
         dh4_dstate = np.array([1, 0])
 
         if h == h1:
+            #print('h1 active:', h)
             dh_dstate = dh1_dstate
         elif h == h2:
+            #print('h2 active:', h)
             dh_dstate = dh2_dstate
         elif h == h3:
+            #print('h3 active:', h)
             dh_dstate = dh3_dstate
         else:  # h == h4
+            #print('h4 active:', h)
             dh_dstate = dh4_dstate
 
+        # h = h4
+        # print(h)
+        # dh_dstate = dh4_dstate
         # Derivative of h
         dot_h = dh_dstate @ np.array([x1_dot, x2_dot])
         
@@ -169,6 +183,8 @@ class PolynomialSystemStabilizer:
         # Setup and solve the QP
         problem = cp.Problem(objective, constraints)
         problem.solve(solver='SCS', verbose=False)
+        
+        #print('control:', control.value)
         
 
         return control.value, delta.value, h, V
@@ -196,7 +212,7 @@ class PolynomialSystemStabilizer:
             control_inputs.append(control_input)
 
             # Stopping condition (optional)
-            if np.allclose(state, desired_state, atol=1e-2):
+            if np.abs(state[0] - desired_state[0]) < 0.05 and np.abs(state[1] - desired_state[1]) < 0.05:
                 print("System stabilized!")
                 break
 
@@ -205,17 +221,17 @@ class PolynomialSystemStabilizer:
 # Example usage
 def main():
     initial_states = [
-        [5, 5],    # Quadrant 1
-        [2, -2],   # Quadrant 2
-        [-2, -2],  # Quadrant 3
+        [2, 0],    # Quadrant 1
+        [3, -2],   # Quadrant 2
+        [-2, -1],  # Quadrant 3
         [-2, 5]    # Quadrant 4
     ]
     
-    dt = 0.02             # simulate time discretization
-    steps = 100           # total time step for simulation
+    dt = 0.02            # simulate time discretization
+    steps = 1000           # total time step for simulation
     
-    epsilon = 0.4
-    psi = 0.4
+    epsilon = 0.1
+    psi = 0.1
 
     barrier_functions, Lyapunov_functions, relax_values, controls = plot_state_space_and_trajectories(initial_states, epsilon, psi, dt, steps)
     
