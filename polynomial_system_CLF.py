@@ -35,7 +35,7 @@ def plot_state_space_and_trajectories(initial_states, epsilon, psi, dt, steps):
     
 
     colors = ['b', 'purple', 'orange', 'r']  # Colors for trajectories
-    styles = ['--', '-.', ':', '-']
+    styles = ['-', '-.', ':', '--']
     trajectory_labels = ['traj1', 'traj2', 'traj3', 'traj4']  # Labels for each trajectory
 
 
@@ -136,7 +136,7 @@ class PolynomialSystemStabilizer:
         baseline_constraints.append(dot_V + rateV * V <= delta)
 
         # Barrier function constraints
-        rateh = 3.0
+        rateh = 0.7
         
         h1 = -x2 - (1 + self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 + self.epsilon)
         h2 = -x2 - (1 - self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 - self.epsilon)
@@ -170,10 +170,22 @@ class PolynomialSystemStabilizer:
         # Derivative of h
         dot_h = dh_dstate @ np.array([x1_dot, x2_dot])
         
+        #baseline_constraints.append(dot_h + rateh * h >= 0.0) 
+        
+        dot_h_1 = dh1_dstate @ np.array([x1_dot, x2_dot])
+        dot_h_2 = dh2_dstate @ np.array([x1_dot, x2_dot])
+        dot_h_3 = dh3_dstate @ np.array([x1_dot, x2_dot])
+        dot_h_4 = dh4_dstate @ np.array([x1_dot, x2_dot])
+        
         baseline_constraints.append(dot_h + rateh * h >= 0.0) 
         
+        #baseline_constraints.append(dot_h_1 + rateh * h1 >= 0.0) 
+        #baseline_constraints.append(dot_h_2 + rateh * h2 >= 0.0) 
+        #baseline_constraints.append(dot_h_3 + rateh * h3 >= 0.0) 
+        #baseline_constraints.append(dot_h_4 + rateh * h4 >= 0.0) 
+        
 
-        p2 = 1e2
+        p2 = 1e3
         objective = cp.Minimize(cp.square(control) + p2 * cp.square(delta))
 
 
@@ -184,7 +196,7 @@ class PolynomialSystemStabilizer:
         problem = cp.Problem(objective, constraints)
         problem.solve(solver='SCS', verbose=False)
         
-        #print('control:', control.value)
+        print('control:', control.value)
         
 
         return control.value, delta.value, h, V
@@ -222,12 +234,12 @@ class PolynomialSystemStabilizer:
 def main():
     initial_states = [
         [2, 0],    # Quadrant 1
-        [3, -2],   # Quadrant 2
+        [-3, 2],   # Quadrant 2
         [-2, -1],  # Quadrant 3
-        [-2, 5]    # Quadrant 4
+        [-2, 4]    # Quadrant 4
     ]
     
-    dt = 0.02            # simulate time discretization
+    dt = 0.01           # simulate time discretization
     steps = 1000           # total time step for simulation
     
     epsilon = 0.1

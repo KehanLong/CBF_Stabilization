@@ -10,6 +10,7 @@ import cvxpy as cp
 import matplotlib.pyplot as plt
 
 import matplotlib.patches as mpatches
+import matplotlib.lines as mlines
 
 def plot_state_space_and_trajectories(initial_states, epsilon1, epsilon2, dt, steps):
     theta_range = np.linspace(-2 * np.pi, 2 * np.pi, 200)
@@ -24,8 +25,8 @@ def plot_state_space_and_trajectories(initial_states, epsilon1, epsilon2, dt, st
 
     # Plotting the state space
     plt.figure(figsize=(8, 6))
-    plt.contourf(theta, theta_dot, h, levels=[0, np.inf], colors='green', alpha=0.3, hatches=['/'])
-    plt.contourf(theta, theta_dot, h_tilde, levels=[0, np.inf], colors='green', alpha=0.3, hatches=['/'])
+    plt.contourf(theta, theta_dot, h, levels=[0, np.inf], colors='green', alpha=0.2, hatches=['/'])
+    plt.contourf(theta, theta_dot, h_tilde, levels=[0, np.inf], colors='green', alpha=0.2, hatches=['/'])
 
     # Plot trajectories from different quadrants
     stabilizer = InvertedPendulumStabilizer(epsilon1, epsilon2, dt)
@@ -47,42 +48,87 @@ def plot_state_space_and_trajectories(initial_states, epsilon1, epsilon2, dt, st
             relax_values = tmp_relax_values
             controls = tmp_control_inputs
 
+    equilibrium_x = 0
+    equilibrium_y = 0
+    plt.scatter(equilibrium_x, equilibrium_y, color='green', marker='o', s=200, label='Equilibrium')  # Adjust 's' for size
 
 
-    plt.xlabel('Angle (rad)', fontsize=17)
-    plt.ylabel('Angular Velocity (rad/s)', fontsize=17)
-    plt.title('Inverted Pendulum: Safe Region and Trajectories', fontsize=20)
-    safe_patch = mpatches.Patch(color='green', alpha=0.3, hatch='/', label='Safe Region')
+
+    plt.xlabel('Angle (rad)', fontsize=20)
+    plt.ylabel('Angular Velocity (rad/s)', fontsize=20)
+    #plt.title('Inverted Pendulum: Safe Region and Trajectories', fontsize=20)
+    safe_patch = mpatches.Patch(color='green', alpha=0.2, hatch='/', label='Safe Region')
+    plt.xticks(fontsize=18)  # Adjust fontsize as needed for x-axis
+    plt.yticks(fontsize=18)  # Adjust fontsize as needed for y-axis
     # Create a custom legend entry for the initial states
-    initial_state_marker = plt.Line2D([0], [0], marker='x', color='black', linestyle='None', markersize=10, label='Initial State')
+    #initial_state_marker = plt.Line2D([0], [0], marker='x', color='black', linestyle='None', markersize=10, label='Initial State')
+    #equilibrium_marker = plt.Line2D([0], [0], marker='o', color='gold', linestyle='None', markersize=12, label='Equilibrium')
 
     # Combine custom entries with existing lines for the legend
-    plt.legend(handles=[safe_patch, initial_state_marker] + [plt.Line2D([0], [0], color=c, lw=4, linestyle=s, label=l) for c, s, l in zip(colors, styles, trajectory_labels)], fontsize=16, loc='lower left')
+    #plt.legend(handles=[safe_patch, initial_state_marker] + [plt.Line2D([0], [0], color=c, lw=4, linestyle=s, label=l) for c, s, l in zip(colors, styles, trajectory_labels)], fontsize=16, loc='lower left')
 
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('inverted_pendulum.png', dpi=300)
+    plt.savefig('inverted_pendulum_clf_only.png', dpi=300)
     plt.show()
     
     return barrier_functions, Lyapunov_functions, relax_values, controls
 
 def plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values, control_inputs):
     time_steps = np.arange(len(barrier_functions))
+    
+    dt = 0.02  # Time discretization
+    time_steps = time_steps * dt  # Convert time steps to actual time
+
 
     # Create a new figure for the Lyapunov and barrier functions
-    plt.figure(figsize=(8, 6))
+    plt.figure(figsize=(12, 6))
 
-    plt.plot(time_steps, barrier_functions, 'g--', label='Barrier Function', linewidth = 3)
-    plt.plot(time_steps, Lyapunov_functions, 'b-', label='Lyapunov Function', linewidth = 2)
-    plt.plot(time_steps, relax_values, 'r-.', label='Relaxation', linewidth = 3)
-    plt.xlabel('Time Steps', fontsize = 17)
-    plt.ylabel('Function Value', fontsize = 17)
-    plt.title('Function Values Over Time for Trajectory', fontsize = 20)
-    plt.legend(fontsize = 16)
+    plt.plot(time_steps, barrier_functions, 'g--', label='Barrier Function', linewidth = 4)
+    plt.plot(time_steps, Lyapunov_functions, 'b-', label='Lyapunov Function', linewidth = 4)
+    plt.plot(time_steps, relax_values, 'r-.', label='Relaxation', linewidth = 4)
+    plt.xlabel('Time (Seconds)', fontsize = 20)
+    plt.ylabel('Function Value', fontsize = 20)
+    #plt.title('Function Values Over Time', fontsize = 22)
+    plt.legend(fontsize = 20)
+    
+    plt.xticks(fontsize=18)  # Adjust fontsize as needed for x-axis
+    plt.yticks(fontsize=18)  # Adjust fontsize as needed for y-axis
 
     plt.tight_layout()
-    plt.savefig('function_values_over_time.png', dpi=300)
+    plt.savefig('relax_function_values_over_time.png', dpi=300)
     plt.show()
+    
+def create_standalone_legend():
+    # Define legend elements
+    safe_patch = mpatches.Patch(color='green', alpha=0.2, hatch='/', label='Safe Region')
+    initial_state_marker = plt.Line2D([0], [0], marker='x', color='black', linestyle='None', markersize=10, label='Initial States')  # Increased markersize
+    equilibrium_marker = plt.Line2D([0], [0], marker='o', color='green', linestyle='None', markersize=10, label='Equilibrium')  # Increased markersize
+    trajectory_lines = [
+        mlines.Line2D([], [], color='b', linewidth=2, linestyle='--', label='Traj1'),
+        mlines.Line2D([], [], color='purple', linewidth=2, linestyle='-.', label='Traj2'),
+        mlines.Line2D([], [], color='orange', linewidth=2, linestyle=':', label='Traj3'),
+        mlines.Line2D([], [], color='r', linewidth=2, linestyle='-', label='Traj4')
+    ]
+
+    # Create a figure specifically for the legend
+    fig = plt.figure(figsize=(10, 2))  # Adjust figure size as needed
+    ax = fig.add_subplot(111)
+    ax.axis('off')
+
+    legend_elements = [safe_patch, initial_state_marker, equilibrium_marker] + trajectory_lines
+    # Create legend with larger fontsize
+    legend = ax.legend(handles=legend_elements, loc='center', ncol=7, fontsize='large', frameon=False)
+
+    # Adjust layout to minimize whitespace
+    fig.subplots_adjust(top=1, bottom=0, right=1, left=0, hspace=0, wspace=0)
+    ax.get_xaxis().set_ticks([])
+    ax.get_yaxis().set_ticks([])
+
+    # Save the legend as a separate figure with minimal padding
+    fig.canvas.draw()
+    bbox = legend.get_window_extent().transformed(fig.dpi_scale_trans.inverted())
+    fig.savefig('legend_large.png', dpi=300, bbox_inches=bbox)
 
 
 
@@ -163,7 +209,7 @@ class InvertedPendulumStabilizer:
         return control.value, delta.value, V
         
     
-    def CLF_CBF_QP(self, current_state, desired_state, rateV = 1.0):
+    def CLF_CBF_QP(self, current_state, desired_state, rateV = 2.0):
         theta, theta_dot = current_state
         theta_d, theta_dot_d = desired_state
 
@@ -219,25 +265,20 @@ class InvertedPendulumStabilizer:
         dh_tilde_dstate = np.array([-1/self.epsilon1, -1]) if -h1 <= -h2 else np.array([self.epsilon2, 1])
         dot_h_tilde = dh_tilde_dstate @ np.array([theta_dot, theta_ddot])
         
+        epsilon_t = 0.001
         #if the initial state is at 4th quadrant 
         if(h1 > 0):
             #print('barrier value:', h)
-            baseline_constraints.append(dot_h + rateh * h >= 0.0) 
+            baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
+            
+            h = h
             
         if(h1 <= 0):
             #print('barrier value:', h_tilde)
-            baseline_constraints.append(dot_h_tilde + rateh * h_tilde >= 0.0) 
+            baseline_constraints.append(dot_h_tilde + rateh * h_tilde >= epsilon_t) 
             
             h = h_tilde
-            
-        # if(h < 0 and h_tilde < 0):
-        #     print('barrier value:', h)
-        #     baseline_constraints.append(dot_h + rateh * h >= 0.0) 
-        
 
-        
-        
-        #print('barrier value:', h)
         
         #print('lyapunov:', V)
 
@@ -246,7 +287,7 @@ class InvertedPendulumStabilizer:
         p2 = 1e2
         
         objective = cp.Minimize(cp.square(control) + p2 * cp.square(delta))
-        #objective = cp.Minimize(p2 * cp.square(delta))
+        #objective = cp.Minimize(cp.square(control))
     
         constraints = baseline_constraints 
 
@@ -255,8 +296,94 @@ class InvertedPendulumStabilizer:
         
         #problem.solve()
         problem.solve(solver='SCS', verbose=False) 
+        
 
         return control.value, delta.value, h, V
+    
+    def CLF_CBF_Switching_QP(self, current_state, desired_state, rateV=1.0):
+        theta, theta_dot = current_state
+        theta_d, theta_dot_d = desired_state
+        
+        # Quadratic Lyapunov function
+        V = (theta - theta_d)**2 + (theta_dot - theta_dot_d)**2
+        
+        # Derivative of V
+        dVdstate = 2 * np.array([theta - theta_d, theta_dot - theta_dot_d])
+        
+        # Control input
+        control = cp.Variable()
+        
+        # Dynamics
+        theta_ddot = (self.g / self.l) * np.sin(theta) + (1 / (self.m * self.l**2)) * control
+        
+        # Lie derivative of V
+        dot_V = dVdstate @ np.array([theta_dot, theta_ddot])
+        
+        # Barrier function
+        rateh = 2.0
+        h1 = 1/self.epsilon1 * theta + theta_dot
+        h2 = -theta_dot - self.epsilon2 * theta
+        
+
+
+        # Define the combined barrier function h
+        h = min(h1, h2)
+        #h = h1
+        
+        # Derivative of h
+        dh_dstate = np.array([1/self.epsilon1, 1]) if h1 <= h2 else np.array([-self.epsilon2, -1])
+        
+        dot_h = dh_dstate @ np.array([theta_dot, theta_ddot])
+        
+        
+        h_tilde = min(-h1, -h2)
+        
+        dh_tilde_dstate = np.array([-1/self.epsilon1, -1]) if -h1 <= -h2 else np.array([self.epsilon2, 1])
+        dot_h_tilde = dh_tilde_dstate @ np.array([theta_dot, theta_ddot])
+        
+        
+        
+        # Constraints
+        constraints = []
+        
+        epsilon_t = 0.001
+        
+        if(h1 < 0):
+                #print('barrier value:', h)
+            constraints.append(dot_h + rateh * h >= 0) 
+                
+        if(h1 >= 0):
+                #print('barrier value:', h_tilde)
+            constraints.append(dot_h_tilde + rateh * h_tilde >= 0) 
+                
+            h = h_tilde
+        
+        if h < 0.0:
+            delta = cp.Variable()
+            constraints.append(delta >= 0)
+            constraints.append(dot_V + rateV * V <= delta)
+            #constraints.append(dot_h + rateh * h >= 0)
+            objective = cp.Minimize(cp.square(control) + 1e2 * cp.square(delta))
+            # Solve QP
+            problem = cp.Problem(objective, constraints)
+            problem.solve(solver='SCS', verbose=False)
+            relax_value = delta.value
+            
+        else:
+            
+            constraints.append(dot_V + rateV * V <= 0)
+            #constraints.append(dot_h + rateh * h >= 0)
+            objective = cp.Minimize(cp.square(control))
+            relax_value = 0
+            problem = cp.Problem(objective, constraints)
+            problem.solve(solver='SCS', verbose=False)
+            
+        print('control:', control.value)
+        print('barrier_value:', h)
+        print('currnet_state:', current_state)
+        
+        
+        return control.value, relax_value, h, V
 
 
 
@@ -275,13 +402,23 @@ class InvertedPendulumStabilizer:
 
         for step in range(steps):
             
-            state_traj.append(state)
             
+            
+            
+            '''
+            Lipschitz controller, relaxed CLF constraint over time
+            '''
             force, delta , h, V = self.CLF_CBF_QP(state, desired_state)
             
-            #force, _ , h = self.CLF_QP(state, desired_state)
+            '''
+            Switching strategy, switch to CLF-CBF QP (no relaxation) once CLF and CBF are compatiable
+            '''
+            
+            #force, delta , h, V = self.CLF_CBF_Switching_QP(state, desired_state)
+            
 
             state = self.dynamics(state, force)
+            state_traj.append(state)
             
             barrier_functions.append(h)
             
@@ -296,6 +433,13 @@ class InvertedPendulumStabilizer:
             if np.abs(state[0] - desired_state[0]) < 0.05 and np.abs(state[1]) < 0.05:
                 print("Pendulum stabilized!")
                 break
+            
+            # only for CLF-QP to compare results
+            # if np.abs(state[1]) < 0.1:
+            #     print("Actuation Lost!")
+            #     print('state:', state)
+            #     state_traj.append(np.array([state[0], 0]))
+            #     break
 
         return state, state_traj, barrier_functions, Lyapunov_functions, relax_values, control_inputs
 
@@ -303,13 +447,14 @@ class InvertedPendulumStabilizer:
 def main():
     
     initial_states = [
-        [np.pi, 2],    # Quadrant 1
-        [np.pi/1.5, -4.5],   # Quadrant 2
-        [-np.pi/3, -3],  # Quadrant 3
-        [-np.pi/1.5, 4]    # Quadrant 4
+        [np.pi, 3],    # Quadrant 1
+        #[-2.20, 2.25],
+        [np.pi/1.5, -4],   # Quadrant 2
+        [-np.pi/1.2, -3],  # Quadrant 3
+        [-np.pi/2, 4]    # Quadrant 4
     ]
     
-    dt = 0.05              # simulate time discretization
+    dt = 0.02           # simulate time discretization
     steps = 2000            # total time step for simulation
     
     epsilon1 = 0.2
@@ -318,6 +463,8 @@ def main():
     barrier_functions, Lyapunov_functions, relax_values, controls = plot_state_space_and_trajectories(initial_states, epsilon1, epsilon2, dt, steps)
     
     plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values, controls)
+    
+    #create_standalone_legend()
 
 
 
