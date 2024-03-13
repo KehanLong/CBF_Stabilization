@@ -293,6 +293,13 @@ class WarmUpStabilizer:
             if np.abs(state[0] - desired_state[0]) < 0.02 and np.abs(state[1] - desired_state[1]) < 0.02:
                 print("System stabilized!")
                 break
+            
+            # if state[0] > 2.0 and np.abs(state[1]-0.0) < 0.2:
+            #     print("System failed!")  
+            #     state_traj.append(np.array([state[0], 0]))
+            #     break
+            
+            
 
         return state, state_traj, barrier_functions, Lyapunov_functions, relax_values, control_inputs
 
@@ -305,7 +312,7 @@ def main():
         [-2, 3]    # Quadrant 4
     ]
     
-    dt = 0.02         # simulate time discretization
+    dt = 0.01         # simulate time discretization
     steps = 1000          # total time step for simulation
     
     
