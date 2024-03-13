@@ -12,25 +12,16 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 
 def plot_state_space_and_trajectories(initial_states, stabilizer, steps):
-    x1_range = np.linspace(-4, 7, 200)
-    x2_range = np.linspace(-5, 7, 200)
+    x1_range = np.linspace(-6, 6, 200)
+    x2_range = np.linspace(-4, 4, 200)
     x1, x2 = np.meshgrid(x1_range, x2_range)
     
     
-    epsilon = stabilizer.epsilon
-    psi = stabilizer.psi
-
-    # Calculate barrier function values for each constraint
-    h1 = -x2 - (1 + epsilon) * x1 + np.sqrt(6 - psi) * (2 + epsilon)
-    h2 = -x2 - (1 - epsilon) * x1 + np.sqrt(6 - psi) * (2 - epsilon)
-    h3 = x2 + np.sqrt(6 - psi)
-    h4 = x1 + np.sqrt(6 - psi)
-    
     # Calculate the safe region (h > 0)
-    h = np.minimum(np.minimum(h1, h2), np.minimum(h3, h4))
+    h = -x1 - x2 + 2
     
     # Plotting the state space and the safe region
-    plt.figure(figsize=(8, 8))
+    plt.figure(figsize=(12, 8))
     plt.contourf(x1, x2, h, levels=[0, np.inf], colors='green', alpha=0.2, hatches=['/'])
 
     
@@ -60,14 +51,14 @@ def plot_state_space_and_trajectories(initial_states, stabilizer, steps):
     equilibrium_y = 0
     plt.scatter(equilibrium_x, equilibrium_y, color='green', marker='o', s=200, label='Equilibrium')  # Adjust 's' for size
     #plt.title('Polynomial System: State Space and Trajectories', fontsize=20)
-    safe_patch = mpatches.Patch(color='green', alpha=0.2, hatch='/', label='Safe Region')
+    #safe_patch = mpatches.Patch(color='green', alpha=0.2, hatch='/', label='Safe Region')
     plt.xticks(fontsize=22)  # Adjust fontsize as needed for x-axis
     plt.yticks(fontsize=22)  # Adjust fontsize as needed for y-axis
     #plt.legend(handles=[safe_patch] + plt.gca().get_lines(), fontsize=16, loc='lower right')  # Combine safe region patch with trajectory lines in the legend
 
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('polynomial_system_switched.png', dpi=300)
+    plt.savefig('warm_up_switch.png', dpi=300)
     plt.show()
     
     return barrier_functions, Lyapunov_functions, relax_values, controls
@@ -102,214 +93,91 @@ def plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values,
     plt.yticks(fontsize=22)
 
     plt.tight_layout()
-    plt.savefig('polynomial_function_values_over_time.png', dpi=300)
-    plt.show()
-    
-def plot_polynomial_system_feasibility_map(stabilizer, desired_state):
-    x1_range = np.linspace(-8, 8, 100)
-    x2_range = np.linspace(-8, 8, 100)
-    X1, X2 = np.meshgrid(x1_range, x2_range)
-    
-    # Define your barrier function values here as per your stabilizer's definitions
-    epsilon = stabilizer.epsilon
-    psi = stabilizer.psi
-    
-    # Calculate barrier function values for each constraint
-    H1 = -X2 - (1 + epsilon) * X1 + np.sqrt(6 - psi) * (2 + epsilon)
-    H2 = -X2 - (1 - epsilon) * X1 + np.sqrt(6 - psi) * (2 - epsilon)
-    H3 = X2 + np.sqrt(6 - psi)
-    H4 = X1 + np.sqrt(6 - psi)
-    
-    # Calculate the minimum h for the safe region
-    H = np.minimum(np.minimum(H1, H2), np.minimum(H3, H4))
-    
-    # temp_x1 = (np.sqrt(6 - psi) * (2 + epsilon) - np.sqrt(6 - psi) * (2 - epsilon)) / (2*epsilon)
-    
-    # temp_x2 = -(1+epsilon) * temp_x1 + np.sqrt(6 - psi) * (2 + epsilon)
-    
-    
-    # state_h1_h2_zero = np.array([temp_x1, temp_x2])
-    # state_h3_h4_zero = np.array([-np.sqrt(6-psi), -np.sqrt(6-psi)])
-    
-    # print('state_h1_h2:', state_h1_h2_zero)
-    # print('state_h3_h4:', state_h3_h4_zero)
-    
-    # print(temp_x1 - 1/6 * temp_x1**3)
-    # '''
-    # sanity check for some states
-    # '''
-    # # Now perform CLF-CBF QP for these states
-    # print("Checking state where h1 = h2 = 0")
-    # control, delta, h, V = stabilizer.CLF_CBF_QP(state_h1_h2_zero, desired_state)
-    # print("Control:", control, "Delta:", delta, "h:", h, "V:", V)
-
-    # print("\nChecking state where h3 = h4 = 0")
-    # control, delta, h, V = stabilizer.CLF_CBF_QP(state_h3_h4_zero, desired_state)
-    # print("Control:", control, "Delta:", delta, "h:", h, "V:", V)
-
-    
-    # Plotting the state space
-    plt.figure(figsize=(10, 8))
-    plt.contourf(X1, X2, H, levels=[0, np.inf], colors='green', alpha=0.3, hatches=['/'])
-    
-    # Check feasibility for each state and scatter plot the feasible states
-    for i in range(X1.shape[0]):
-        for j in range(X1.shape[1]):
-            current_state = np.array([X1[i, j], X2[i, j]])
-            try:
-                control, delta, h, V = stabilizer.CLF_CBF_QP(current_state, desired_state)
-                # Scatter plot the state if a control solution is found
-                if control is not None:
-                    plt.scatter(X1[i, j], X2[i, j], color='red', s=1)
-            except Exception as e:
-                pass  # Ignore errors and continue to the next state
-
-    plt.xlabel('x1')
-    plt.ylabel('x2')
-    plt.title('Polynomial System Feasibility plot')
-    plt.grid(True)
-    plt.savefig('polynomial_system_feasible_map.png', dpi=300)
+    plt.savefig('warmup_values_over_time.png', dpi=300)
     plt.show()
     
 
 
-class PolynomialSystemStabilizer:
-    def __init__(self, epsilon, psi, dt):
+
+class WarmUpStabilizer:
+
+    def __init__(self, dt):
         self.dt = dt  # time step
-        self.epsilon = epsilon
-        self.psi = psi
+
+    def Lambda(self, s):
+        if s < 2.01:
+            return np.exp(-1 / (-s + 2.01))
+        else:
+            return 0
 
     def dynamics(self, state, control):
         dt = self.dt
-        
         def f(current_state, u):
             x1, x2 = current_state
-            x1_dot = u
-            x2_dot = -x1 + (1/6) * x1**3 - u
+            x1_dot = x2 - x1 * self.Lambda(x1)
+            x2_dot = -x1 + u
             return np.array([x1_dot, x2_dot])
-        
+
         # Compute RK4 intermediate steps
         k1 = f(state, control)
         k2 = f(state + 0.5 * dt * k1, control)
         k3 = f(state + 0.5 * dt * k2, control)
         k4 = f(state + dt * k3, control)
-        
+
         # Update the state using RK4 formula
-        new_state = state + (dt / 6) * (k1 + 2*k2 + 2*k3 + k4)
-        
+        new_state = state + (dt / 6) * (k1 + 2 * k2 + 2 * k3 + k4)
+
         return new_state
 
-    def CLF_CBF_QP(self, current_state, desired_state, rateV = 0.1):
+    def CLF_CBF_QP(self, current_state, desired_state, rateV=0.5):
         x1, x2 = current_state
         x1_d, x2_d = desired_state
 
         # Quadratic Lyapunov function
-        V = 0.5 * (x1 - x1_d)**2 + 0.5 * (x2 - x2_d)**2
+        V = 0.5 * (x1 - x1_d) ** 2 + 0.5 * (x2 - x2_d) ** 2
 
         # Derivative of V
         dVdstate = np.array([x1 - x1_d, x2 - x2_d])
 
         # Control inputs
         control = cp.Variable()
-        
         delta = cp.Variable()
 
         # Dynamics of the polynomial system
-        x1_dot = control
-        x2_dot = -x1 + (1/6) * x1**3 - control
+        x1_dot = x2 - x1 * self.Lambda(x1)
+        x2_dot = -x1 + control
 
         # Lie derivative of V
         dot_V = dVdstate @ np.array([x1_dot, x2_dot])
-        
-        
+
         # Constraint for the decrease rate of V
         baseline_constraints = []
         baseline_constraints.append(delta >= 0)
         baseline_constraints.append(dot_V + rateV * V <= delta)
 
         # Barrier function constraints
-        rateh = 0.2
-        
-        h1 = -x2 - (1 + self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 + self.epsilon)
-        h2 = -x2 - (1 - self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 - self.epsilon)
-        h3 = x2 + np.sqrt(6 - self.psi)
-        h4 = x1 + np.sqrt(6 - self.psi)
-        h = min(h1, h2, h3, h4)
-        
-        
+        rateh = 1.0
+        h = -x1 - x2 + 2
+
         # Define dh_dstate based on the chosen barrier function h
-        dh1_dstate = np.array([-1 - self.epsilon, -1])
-        dh2_dstate = np.array([-1 + self.epsilon, -1])
-        dh3_dstate = np.array([0, 1])
-        dh4_dstate = np.array([1, 0])
+        dh_dstate = np.array([-1, -1])
 
-        if h == h1:
-            #print('h1 active:', h)
-            dh_dstate = dh1_dstate
-        elif h == h2:
-            #print('h2 active:', h)
-            dh_dstate = dh2_dstate
-        elif h == h3:
-            #print('h3 active:', h)
-            dh_dstate = dh3_dstate
-        else:  # h == h4
-            #print('h4 active:', h)
-            dh_dstate = dh4_dstate
-
-        # h = h4
-        # print(h)
-        # dh_dstate = dh4_dstate
         # Derivative of h
         dot_h = dh_dstate @ np.array([x1_dot, x2_dot])
-        
+
         epsilon_t = 0.001
         
-        baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
-        
-        
-        dot_h_1 = dh1_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_2 = dh2_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_3 = dh3_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_4 = dh4_dstate @ np.array([x1_dot, x2_dot])
-        
-        # baseline_constraints.append(dot_h_1 + rateh * h1 >= 0) 
-        # baseline_constraints.append(dot_h_2 + rateh * h2 >= 0) 
-        
-        # if(h1==h2):
-        #     baseline_constraints.append(dot_h_1 + rateh * h1 >= epsilon_t) 
-        #     baseline_constraints.append(dot_h_2 + rateh * h2 >= epsilon_t) 
-        # else:
-        #     baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
-        
-        #baseline_constraints.append(dot_h + rateh * h >= 0.0) 
-        
-        # if(h3==h4 and h3==0):
-        #     print('h3==h4==0')
-        #     baseline_constraints.append(dot_h_3 + 1 * h3 >= 0.0) 
-        #     baseline_constraints.append(dot_h_4 + 2 * h4 >= 0.0) 
-        # else:
-            
-        #    baseline_constraints.append(dot_h + rateh * h >= 0.0) 
-        
-        # baseline_constraints.append(dot_h_1 + rateh * h1 >= 0.0) 
-        # baseline_constraints.append(dot_h_2 + rateh * h2 >= 0.0) 
-        # baseline_constraints.append(dot_h_3 + rateh * h3 >= 0.0) 
-        # baseline_constraints.append(dot_h_4 + rateh * h4 >= 0.0) 
-        
+        # uncomment the following line for CCLF-QP control
+        baseline_constraints.append(dot_h + rateh * h >= epsilon_t)
 
         p2 = 1e3
         objective = cp.Minimize(cp.square(control) + p2 * cp.square(delta))
-
-
 
         constraints = baseline_constraints
 
         # Setup and solve the QP
         problem = cp.Problem(objective, constraints)
         problem.solve(solver='SCS', verbose=False)
-        
-        #print('control:', control.value)
-        
 
         return control.value, delta.value, h, V
 
@@ -329,80 +197,36 @@ class PolynomialSystemStabilizer:
         delta = cp.Variable()
 
         # Dynamics of the polynomial system
-        x1_dot = control
-        x2_dot = -x1 + (1/6) * x1**3 - control
+        x1_dot = x2 - x1 * self.Lambda(x1)
+        x2_dot = -x1 + control
 
         # Lie derivative of V
         dot_V = dVdstate @ np.array([x1_dot, x2_dot])
         
         
         constraints = []
-
-
+        
+        
+        
         # Barrier function constraints
-        
-        h1 = -x2 - (1 + self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 + self.epsilon)
-        h2 = -x2 - (1 - self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 - self.epsilon)
-        h3 = x2 + np.sqrt(6 - self.psi)
-        h4 = x1 + np.sqrt(6 - self.psi)
-        h = min(h1, h2, h3, h4)
-        
-        
+        rateh = 1.0
+        h = -x1 - x2 + 2
+
         # Define dh_dstate based on the chosen barrier function h
-        dh1_dstate = np.array([-1 - self.epsilon, -1])
-        dh2_dstate = np.array([-1 + self.epsilon, -1])
-        dh3_dstate = np.array([0, 1])
-        dh4_dstate = np.array([1, 0])
+        dh_dstate = np.array([-1, -1])
 
-        if h == h1:
-            #print('h1 active:', h)
-            dh_dstate = dh1_dstate
-        elif h == h2:
-            #print('h2 active:', h)
-            dh_dstate = dh2_dstate
-        elif h == h3:
-            #print('h3 active:', h)
-            dh_dstate = dh3_dstate
-        else:  # h == h4
-            #print('h4 active:', h)
-            dh_dstate = dh4_dstate
-
-        # h = h4
-        # print(h)
-        # dh_dstate = dh4_dstate
         # Derivative of h
         dot_h = dh_dstate @ np.array([x1_dot, x2_dot])
-        
-        
-        
-        
-        dot_h_1 = dh1_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_2 = dh2_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_3 = dh3_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_4 = dh4_dstate @ np.array([x1_dot, x2_dot])
-        
-        #baseline_constraints.append(dot_h + rateh * h >= 0.0) 
-        
-        # if(h3==h4 and h3==0):
-        #     print('h3==h4==0')
-        #     baseline_constraints.append(dot_h_3 + 1 * h3 >= 0.0) 
-        #     baseline_constraints.append(dot_h_4 + 2 * h4 >= 0.0) 
-        # else:
-            
-        #    baseline_constraints.append(dot_h + rateh * h >= 0.0) 
-        
-        #baseline_constraints.append(dot_h_1 + rateh * h1 >= 0.0) 
-        #baseline_constraints.append(dot_h_2 + rateh * h2 >= 0.0) 
-        #baseline_constraints.append(dot_h_3 + rateh * h3 >= 0.0) 
-        #baseline_constraints.append(dot_h_4 + rateh * h4 >= 0.0) 
-        
+
         epsilon_t = 0.001
+
+    
         
         
         
         if h < 0.0:
             # if in unsafe set, just solve the BNCBF-QP
-            rateh = 0.2
+            rateh = 1.0
             #delta = cp.Variable()
             #constraints.append(delta >= 0)
             #constraints.append(dot_V + rateV * V <= delta)
@@ -419,8 +243,8 @@ class PolynomialSystemStabilizer:
             problem.solve(solver='SCS', verbose=False)
             relax_value = 0   
         else:
-            rateV = 0.1   #make rate V small to ensure the compatibility 
-            rateh = 0.2
+            rateV = 0.5
+            rateh = 1.0
             constraints.append(dot_V + rateV * V <= 0)
             constraints.append(dot_h + rateh * h >= 0)
             objective = cp.Minimize(cp.square(control))
@@ -466,7 +290,7 @@ class PolynomialSystemStabilizer:
             control_inputs.append(control_input)
 
             # Stopping condition (optional)
-            if np.abs(state[0] - desired_state[0]) < 0.05 and np.abs(state[1] - desired_state[1]) < 0.05:
+            if np.abs(state[0] - desired_state[0]) < 0.02 and np.abs(state[1] - desired_state[1]) < 0.02:
                 print("System stabilized!")
                 break
 
@@ -475,25 +299,18 @@ class PolynomialSystemStabilizer:
 # Example usage
 def main():
     initial_states = [
-        [1.8, 5.2],    # Quadrant 1
-        [4, -4],   # Quadrant 2
-        [-2.2, -3.2],  # Quadrant 3
-        [-2, 4.5]    # Quadrant 4
+        [4, 3.2],    # Quadrant 1
+        [3, -2],   # Quadrant 2
+        [-4.2, -3.5],  # Quadrant 3
+        [-2, 3]    # Quadrant 4
     ]
     
     dt = 0.02         # simulate time discretization
-    steps = 2000          # total time step for simulation
-    
-    epsilon = 0.1
-    psi = 0.1
+    steps = 1000          # total time step for simulation
     
     
-    stabilizer = PolynomialSystemStabilizer(epsilon, psi, dt)
+    stabilizer = WarmUpStabilizer(dt)
     
-    '''
-    feasibility map plot
-    '''
-    #plot_polynomial_system_feasibility_map(stabilizer, desired_state)
     
 
     barrier_functions, Lyapunov_functions, relax_values, controls = plot_state_space_and_trajectories(initial_states,stabilizer, steps)

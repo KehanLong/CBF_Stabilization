@@ -91,9 +91,10 @@ def plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values,
     # Create a new figure for the Lyapunov and barrier functions
     plt.figure(figsize=(12, 6))
 
-    plt.plot(time, barrier_functions, 'g--', label='Barrier Function', linewidth=4)
+    plt.plot(time, barrier_functions, 'g-.', label='Barrier Function', linewidth=4)
     plt.plot(time, Lyapunov_functions, 'b-', label='Lyapunov Function', linewidth=4)
-    plt.plot(time, relax_values, 'r-.', label='Relaxation', linewidth=4)
+    #plt.plot(time, relax_values, 'r-.', label='Relaxation', linewidth=4)
+    plt.axhline(y=0, color='black', label = 'Zero Line', linestyle='--', linewidth=4)
     
     # Plot the vertical line if switch_time is valid
     if switch_time is not None:
@@ -297,7 +298,7 @@ class InvertedPendulumStabilizer:
         #problem.solve()
         problem.solve(solver='SCS', verbose=False)
         
-        print('relax:', delta.value)
+        #print('relax:', delta.value)
         
         
 
@@ -470,11 +471,12 @@ class InvertedPendulumStabilizer:
         
         
         if h < 0.0:
+            #if in unsafe set, just solve BNCBF-QP
             delta = cp.Variable()
-            constraints.append(delta >= 0)
-            constraints.append(dot_V + rateV * V <= delta)
+            #constraints.append(delta >= 0)
+            #constraints.append(dot_V + rateV * V <= delta)
             constraints.append(dot_h + rateh * h >= epsilon_t)
-            objective = cp.Minimize(cp.square(control) + 1e2 * cp.square(delta))
+            objective = cp.Minimize(cp.square(control))
             # Solve QP
             problem = cp.Problem(objective, constraints)
             problem.solve(solver='SCS', verbose=False)
@@ -544,7 +546,7 @@ class InvertedPendulumStabilizer:
             control_inputs.append(force)
 
             # Stopping condition (optional)
-            if np.abs(state[0] - desired_state[0]) < 0.05 and np.abs(state[1]) < 0.05:
+            if np.abs(state[0] - desired_state[0]) < 0.01 and np.abs(state[1]) < 0.01:
                 print("Pendulum stabilized!")
                 break
             
@@ -568,7 +570,7 @@ def main():
     ]
     
     dt = 0.01           # simulate time discretization
-    steps = 500           # total time step for simulation
+    steps = 400           # total time step for simulation
 
     epsilon1 = 0.1
     epsilon2 = 1.2
