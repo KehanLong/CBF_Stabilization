@@ -58,7 +58,7 @@ def plot_unicycle_trajectories(initial_states, goal_state, stabilizer, steps):
                               plt.Line2D([0], [0], color='r', linewidth=4, linestyle='-', label='Traj4')]
     #plt.legend(handles=custom_legend_elements, fontsize=20)
 
-    plt.savefig('unicycle_only_clf.png', dpi=300)
+    #plt.savefig('unicycle_switched.png', dpi=300)
     plt.show()
     
     return barrier_functions, Lyapunov_functions, relax_values, controls
@@ -100,7 +100,7 @@ def plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values,
     plt.yticks(fontsize=20)
 
     plt.tight_layout()
-    plt.savefig('unicycle_function_values_and_controls_combined.png', dpi=300)
+    #plt.savefig('unicycle_function_values_and_controls_combined.png', dpi=300)
     plt.show()
 
 
@@ -117,7 +117,7 @@ class UnicycleStabilizer:
         # Unpack the state
         x, y, theta = state
         
-        # Equation of motion for inverted pendulum
+        # Equation of motion 
         theta_dot = angular_w
         new_theta = theta + theta_dot * self.dt
         
@@ -130,15 +130,15 @@ class UnicycleStabilizer:
         
         return np.array([new_x, new_y, new_theta])
         
-    def CLF_CBF_QP(self, current_state, desired_state, rateV = 0.2):
+    def CLF_CBF_QP(self, current_state, desired_state, rateV = 0.1):
         x, y, theta = current_state
         x_d, y_d, theta_d = desired_state
 
         # Quadratic Lyapunov function
-        V = (x - x_d)**2 +  (y - y_d)**2 + (theta - theta_d)**2
+        V = (x - x_d)**2 +  (y - y_d)**2 + 0.1 * (theta - theta_d)**2
 
         # Derivative of V
-        dVdstate = 2 * np.array([(x - x_d), (y - y_d), theta - theta_d])
+        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 0.1 * (theta - theta_d)])
 
         # Control inputs
         v = cp.Variable()
@@ -172,52 +172,9 @@ class UnicycleStabilizer:
         
         
         
-        # '''
-        # h: the only safe set is the line defined by the orientation and position of the desired state
-        # '''
-        # cos_hat = (x_d - x) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
-        
-        
-        # sin_hat = (y_d - y) / np.sqrt((x_d-x)**2 + (y_d-y)**2)
-        
-        
-        # # Partial derivatives of cos_hat and sin_hat w.r.t x and y
-        # # Derivatives of the numerator and denominator for cos_hat w.r.t x
-        # exp1 = x_d - x
-        # du_dx = -1
-        # exp2 = np.sqrt((x_d-x)**2 + (y_d-y)**2)
-        # dv_dx = (x - x_d) / exp2
-        
-        # # Derivative of cos_hat w.r.t x
-        # d_cos_hat_dx = (du_dx * exp2 - exp1 * dv_dx) / (exp2**2)
-        
-        # # Similarly, compute d_sin_hat_dx, d_cos_hat_dy, and d_sin_hat_dy
-        # dv_dy = -(y_d - y) / exp2  # Derivative of the denominator for sin_hat w.r.t y
-        
-        # # Derivative of sin_hat w.r.t x
-        # d_sin_hat_dx = -dv_dx * (y_d - y) / (exp2**2)
-        
-        # # Derivative of cos_hat w.r.t y
-        # d_cos_hat_dy = -dv_dy * (x_d - x) / (exp2**2)
-        
-        # # Derivative of sin_hat w.r.t y
-        # exp1 = y_d - y
-        # du_dy = -1
-        # d_sin_hat_dy = (du_dy * exp2 - exp1 * dv_dy) / (exp2**2)
-
-        
-        # h = - self.eps * (cos_hat - np.cos(theta_d))**2 - self.eps * (sin_hat - np.sin(theta_d))**2
-        
-        # dh_dx =  -self.eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dx - self.eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dx
-        # dh_dy =  -self.eps * 2 * (cos_hat - np.cos(theta_d)) * d_cos_hat_dy - self.eps * 2 * (sin_hat - np.sin(theta_d)) * d_sin_hat_dy
-        
-        
-        # dh_dtheta = 0
-        
-        
         
         '''
-        paper draft idea of defining h:
+        paper idea of defining h:
         '''
         
         
@@ -257,7 +214,9 @@ class UnicycleStabilizer:
         
         epsilon_t = 0.005
         
-        #baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
+        
+        #comment the following line to remove the CBF constraint
+        baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
         
     
 
@@ -288,10 +247,10 @@ class UnicycleStabilizer:
         x_d, y_d, theta_d = desired_state
 
         # Quadratic Lyapunov function
-        V = (x - x_d)**2 +  (y - y_d)**2 + (theta - theta_d)**2
+        V = (x - x_d)**2 +  (y - y_d)**2 + 0.1*(theta - theta_d)**2
 
         # Derivative of V
-        dVdstate = 2 * np.array([(x - x_d), (y - y_d), theta - theta_d])
+        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 0.1*(theta - theta_d)])
 
         # Control inputs
         v = cp.Variable()
@@ -336,7 +295,6 @@ class UnicycleStabilizer:
         
         h = min(h1, h2)
         
-        rateh = 0.005
         
         
         # Derivative of h
@@ -348,21 +306,25 @@ class UnicycleStabilizer:
         
         dot_h = dh_dstate @ np.array([v * np.cos(theta), v * np.sin(theta), omega])
         
-        epsilon_t = 0.005
+        epsilon_t = 0.002
+        
+        rateh = 0.005
         
         
         
         if h < 0.0:
+            
             delta = cp.Variable()
             constraints.append(delta >= 0)
             constraints.append(dot_V + rateV * V <= delta)
             constraints.append(dot_h + rateh * h >= epsilon_t)
-            objective = cp.Minimize(cp.square(v - self.prev_v) + cp.square(omega - self.prev_omega) + 1e2 * cp.square(delta))
+            objective = cp.Minimize(cp.square(v - self.prev_v) + cp.square(omega - self.prev_omega) + 2e2 * cp.square(delta))
             # Solve QP
             problem = cp.Problem(objective, constraints)
             problem.solve(solver='SCS', verbose=False)
-            relax_value = delta.value      
+            relax_value = 0    
         else: 
+
             constraints.append(dot_V + rateV * V <= 0)
             constraints.append(dot_h + rateh * h >= 0)
             objective = cp.Minimize(cp.square(v - self.prev_v) + cp.square(omega - self.prev_omega))
@@ -397,12 +359,12 @@ class UnicycleStabilizer:
             Lipschitz controller
             '''
             
-            linear_v, angular_w , _, _, delta, h, V = self.CLF_CBF_QP(state, desired_state)
+            #linear_v, angular_w , _, _, delta, h, V = self.CLF_CBF_QP(state, desired_state)
             
             '''
             switching controller
             '''
-            #linear_v, angular_w , _, _, delta, h, V = self.CLF_CBF_Switching_QP(state, desired_state)
+            linear_v, angular_w , _, _, delta, h, V = self.CLF_CBF_Switching_QP(state, desired_state)
 
             state = self.dynamics(state, linear_v, angular_w)
             
@@ -418,14 +380,10 @@ class UnicycleStabilizer:
             #print('car_state:', state)
 
             # Stopping condition
-            if np.linalg.norm(state[0:2] - desired_state[0:2]) < 0.4 and np.abs(state[2] - desired_state[2]) < 0.02:
+            if np.linalg.norm(state[0:2] - desired_state[0:2]) < 0.4 and np.abs(state[2] - desired_state[2]) < 0.01:
                 print("Car Reached the desired state!")
                 break
             
-            #for only CLF stopping
-            if np.abs(state[2] - desired_state[2]) < 0.01:
-                print("Car loss actuation")
-                break
 
         return state, state_traj, barrier_functions, Lyapunov_functions, relax_values, control_inputs
 
@@ -438,8 +396,6 @@ def main():
     # Initial and desired states
     
     epsilon = 0.04
-
-    
     
     initial_states = [
         [3., 1., np.pi],    
@@ -448,8 +404,8 @@ def main():
         [-2, 3, np.pi/4]    
     ]
     
-    dt = 0.01           # simulate time discretization
-    steps = 1000           # total time step for simulation
+    dt = 0.02           # simulate time discretization
+    steps = 2000           # total time step for simulation
 
     
     goal_state = np.array([0, 0, 0])

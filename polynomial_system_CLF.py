@@ -67,7 +67,7 @@ def plot_state_space_and_trajectories(initial_states, stabilizer, steps):
 
     plt.grid(True)
     plt.tight_layout()
-    plt.savefig('polynomial_system_switched.png', dpi=300)
+    #plt.savefig('polynomial_system_switched.png', dpi=300)
     plt.show()
     
     return barrier_functions, Lyapunov_functions, relax_values, controls
@@ -102,7 +102,7 @@ def plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values,
     plt.yticks(fontsize=22)
 
     plt.tight_layout()
-    plt.savefig('polynomial_function_values_over_time.png', dpi=300)
+    #plt.savefig('polynomial_function_values_over_time.png', dpi=300)
     plt.show()
     
 def plot_polynomial_system_feasibility_map(stabilizer, desired_state):
@@ -174,10 +174,13 @@ def plot_polynomial_system_feasibility_map(stabilizer, desired_state):
 
 
 class PolynomialSystemStabilizer:
-    def __init__(self, epsilon, psi, dt):
+    def __init__(self, epsilon, psi, dt, rateV=0.1, rateh = 0.2):
         self.dt = dt  # time step
         self.epsilon = epsilon
         self.psi = psi
+        
+        self.rateV = rateV
+        self.rateh = rateh
 
     def dynamics(self, state, control):
         dt = self.dt
@@ -199,7 +202,7 @@ class PolynomialSystemStabilizer:
         
         return new_state
 
-    def CLF_CBF_QP(self, current_state, desired_state, rateV = 0.1):
+    def CLF_CBF_QP(self, current_state, desired_state):
         x1, x2 = current_state
         x1_d, x2_d = desired_state
 
@@ -225,10 +228,9 @@ class PolynomialSystemStabilizer:
         # Constraint for the decrease rate of V
         baseline_constraints = []
         baseline_constraints.append(delta >= 0)
-        baseline_constraints.append(dot_V + rateV * V <= delta)
+        baseline_constraints.append(dot_V + self.rateV * V <= delta)
 
         # Barrier function constraints
-        rateh = 0.2
         
         h1 = -x2 - (1 + self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 + self.epsilon)
         h2 = -x2 - (1 - self.epsilon) * x1 + np.sqrt(6 - self.psi) * (2 - self.epsilon)
@@ -264,13 +266,8 @@ class PolynomialSystemStabilizer:
         
         epsilon_t = 0.001
         
-        baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
+        baseline_constraints.append(dot_h + self.rateh * h >= epsilon_t) 
         
-        
-        dot_h_1 = dh1_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_2 = dh2_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_3 = dh3_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_4 = dh4_dstate @ np.array([x1_dot, x2_dot])
         
         # baseline_constraints.append(dot_h_1 + rateh * h1 >= 0) 
         # baseline_constraints.append(dot_h_2 + rateh * h2 >= 0) 
@@ -313,7 +310,7 @@ class PolynomialSystemStabilizer:
 
         return control.value, delta.value, h, V
 
-    def CLF_CBF_Switching_QP(self, current_state, desired_state, rateV = 0.5):
+    def CLF_CBF_Switching_QP(self, current_state, desired_state):
         x1, x2 = current_state
         x1_d, x2_d = desired_state
 
@@ -374,12 +371,7 @@ class PolynomialSystemStabilizer:
         dot_h = dh_dstate @ np.array([x1_dot, x2_dot])
         
         
-        
-        
-        dot_h_1 = dh1_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_2 = dh2_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_3 = dh3_dstate @ np.array([x1_dot, x2_dot])
-        dot_h_4 = dh4_dstate @ np.array([x1_dot, x2_dot])
+    
         
         #baseline_constraints.append(dot_h + rateh * h >= 0.0) 
         
@@ -402,14 +394,13 @@ class PolynomialSystemStabilizer:
         
         if h < 0.0:
             # if in unsafe set, just solve the BNCBF-QP
-            rateh = 0.2
             #delta = cp.Variable()
             #constraints.append(delta >= 0)
             #constraints.append(dot_V + rateV * V <= delta)
             #constraints.append(dot_h_3 + rateh * h3 >= 0)
             #constraints.append(dot_h_4 + rateh * h4 >= epsilon_t)
             
-            constraints.append(dot_h + rateh * h >= epsilon_t)
+            constraints.append(dot_h + self.rateh * h >= epsilon_t)
             
             # print('h3:', h3)
             # print('h4:', h4)
@@ -419,10 +410,9 @@ class PolynomialSystemStabilizer:
             problem.solve(solver='SCS', verbose=False)
             relax_value = 0   
         else:
-            rateV = 0.1   #make rate V small to ensure the compatibility 
-            rateh = 0.2
-            constraints.append(dot_V + rateV * V <= 0)
-            constraints.append(dot_h + rateh * h >= 0)
+
+            constraints.append(dot_V + self.rateV * V <= 0)
+            constraints.append(dot_h + self.rateh * h >= 0)
             objective = cp.Minimize(cp.square(control))
             relax_value = 0
             problem = cp.Problem(objective, constraints)
@@ -451,13 +441,13 @@ class PolynomialSystemStabilizer:
             '''
             Lipschitz controller, relaxed CLF constraint over time
             '''
-            #control_input, delta , h, V = self.CLF_CBF_QP(state, desired_state)
+            control_input, delta , h, V = self.CLF_CBF_QP(state, desired_state)
             
             '''
             Switching strategy, switch to CLF-CBF QP (no relaxation) once CLF and CBF are compatiable
             '''
             
-            control_input, delta , h, V = self.CLF_CBF_Switching_QP(state, desired_state)
+            #control_input, delta , h, V = self.CLF_CBF_Switching_QP(state, desired_state)
             state = self.dynamics(state, control_input)
             #print('state:', state)
             barrier_functions.append(h)
@@ -487,8 +477,11 @@ def main():
     epsilon = 0.1
     psi = 0.1
     
+    rateV = 0.1
+    rateh = 0.2
     
-    stabilizer = PolynomialSystemStabilizer(epsilon, psi, dt)
+    
+    stabilizer = PolynomialSystemStabilizer(epsilon, psi, dt, rateV, rateh)
     
     '''
     feasibility map plot

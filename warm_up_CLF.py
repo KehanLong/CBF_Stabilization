@@ -101,9 +101,13 @@ def plot_values_and_control(barrier_functions, Lyapunov_functions, relax_values,
 
 class WarmUpStabilizer:
 
-    def __init__(self, dt):
+    def __init__(self, dt, rateV=0.5, rateh=1.0):
+        
         self.dt = dt  # time step
 
+        self.rateV = rateV  #class K for CLF
+        self.rateh = rateh  #class K for CBF
+        
     def Lambda(self, s):
         if s < 2.01:
             return np.exp(-1 / (-s + 2.01))
@@ -129,7 +133,7 @@ class WarmUpStabilizer:
 
         return new_state
 
-    def CLF_CBF_QP(self, current_state, desired_state, rateV=0.5):
+    def CLF_CBF_QP(self, current_state, desired_state):
         x1, x2 = current_state
         x1_d, x2_d = desired_state
 
@@ -153,10 +157,10 @@ class WarmUpStabilizer:
         # Constraint for the decrease rate of V
         baseline_constraints = []
         baseline_constraints.append(delta >= 0)
-        baseline_constraints.append(dot_V + rateV * V <= delta)
+        baseline_constraints.append(dot_V + self.rateV * V <= delta)
 
         # Barrier function constraints
-        rateh = 1.0
+
         h = -x1 - x2 + 2
 
         # Define dh_dstate based on the chosen barrier function h
@@ -168,7 +172,7 @@ class WarmUpStabilizer:
         epsilon_t = 0.001
         
         # uncomment the following line for CCLF-QP control
-        baseline_constraints.append(dot_h + rateh * h >= epsilon_t)
+        baseline_constraints.append(dot_h + self.rateh * h >= epsilon_t)
 
         p2 = 1e3
         objective = cp.Minimize(cp.square(control) + p2 * cp.square(delta))
@@ -209,7 +213,6 @@ class WarmUpStabilizer:
         
         
         # Barrier function constraints
-        rateh = 1.0
         h = -x1 - x2 + 2
 
         # Define dh_dstate based on the chosen barrier function h
@@ -226,14 +229,14 @@ class WarmUpStabilizer:
         
         if h < 0.0:
             # if in unsafe set, just solve the BNCBF-QP
-            rateh = 1.0
+            
             #delta = cp.Variable()
             #constraints.append(delta >= 0)
             #constraints.append(dot_V + rateV * V <= delta)
             #constraints.append(dot_h_3 + rateh * h3 >= 0)
             #constraints.append(dot_h_4 + rateh * h4 >= epsilon_t)
             
-            constraints.append(dot_h + rateh * h >= epsilon_t)
+            constraints.append(dot_h + self.rateh * h >= epsilon_t)
             
             # print('h3:', h3)
             # print('h4:', h4)
@@ -243,10 +246,9 @@ class WarmUpStabilizer:
             problem.solve(solver='SCS', verbose=False)
             relax_value = 0   
         else:
-            rateV = 0.5
-            rateh = 1.0
-            constraints.append(dot_V + rateV * V <= 0)
-            constraints.append(dot_h + rateh * h >= 0)
+
+            constraints.append(dot_V + self.rateV * V <= 0)
+            constraints.append(dot_h + self.rateh * h >= 0)
             objective = cp.Minimize(cp.square(control))
             relax_value = 0
             problem = cp.Problem(objective, constraints)
@@ -315,8 +317,11 @@ def main():
     dt = 0.01         # simulate time discretization
     steps = 1000          # total time step for simulation
     
+    rateV = 0.5        #class K for CLF
+    rateh = 1.0        #class K for CBF
     
-    stabilizer = WarmUpStabilizer(dt)
+    
+    stabilizer = WarmUpStabilizer(dt, rateV, rateh)
     
     
 
