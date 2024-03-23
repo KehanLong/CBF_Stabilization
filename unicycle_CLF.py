@@ -42,8 +42,8 @@ def plot_unicycle_trajectories(initial_states, goal_state, stabilizer, steps):
     goal_region = plt.Circle((goal_state[0], goal_state[1]), 0.4, color='green', alpha=0.2, label='Goal Region')
     plt.gca().add_patch(goal_region)
 
-    plt.xlabel('X Position', fontsize=20)
-    plt.ylabel('Y Position', fontsize=20)
+    plt.xlabel('X1', fontsize=20)
+    plt.ylabel('X2', fontsize=20)
     plt.xticks(fontsize=18)
     plt.yticks(fontsize=18)
     plt.grid(True)
@@ -58,7 +58,7 @@ def plot_unicycle_trajectories(initial_states, goal_state, stabilizer, steps):
                               plt.Line2D([0], [0], color='r', linewidth=4, linestyle='-', label='Traj4')]
     #plt.legend(handles=custom_legend_elements, fontsize=20)
 
-    #plt.savefig('unicycle_switched.png', dpi=300)
+    plt.savefig('unicycle_switch.png', dpi=300)
     plt.show()
     
     return barrier_functions, Lyapunov_functions, relax_values, controls
@@ -135,10 +135,10 @@ class UnicycleStabilizer:
         x_d, y_d, theta_d = desired_state
 
         # Quadratic Lyapunov function
-        V = (x - x_d)**2 +  (y - y_d)**2 + 0.1 * (theta - theta_d)**2
+        V = (x - x_d)**2 +  (y - y_d)**2 + 1 * (theta - theta_d)**2
 
         # Derivative of V
-        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 0.1 * (theta - theta_d)])
+        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 1 * (theta - theta_d)])
 
         # Control inputs
         v = cp.Variable()
@@ -216,7 +216,7 @@ class UnicycleStabilizer:
         
         
         #comment the following line to remove the CBF constraint
-        baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
+        #baseline_constraints.append(dot_h + rateh * h >= epsilon_t) 
         
     
 
@@ -324,6 +324,7 @@ class UnicycleStabilizer:
             problem.solve(solver='SCS', verbose=False)
             relax_value = 0    
         else: 
+            
 
             constraints.append(dot_V + rateV * V <= 0)
             constraints.append(dot_h + rateh * h >= 0)
@@ -382,7 +383,15 @@ class UnicycleStabilizer:
             # Stopping condition
             if np.linalg.norm(state[0:2] - desired_state[0:2]) < 0.4 and np.abs(state[2] - desired_state[2]) < 0.01:
                 print("Car Reached the desired state!")
+                state_traj.append(np.array([state[0], state[1], 0]))
+                
                 break
+            
+            # clf only stop
+            # if np.abs(state[2] - desired_state[2]) < 0.009:
+            #     print("car loss actuation")
+            #     state_traj.append(np.array([state[0], state[1], 0]))
+            #     break
             
 
         return state, state_traj, barrier_functions, Lyapunov_functions, relax_values, control_inputs
