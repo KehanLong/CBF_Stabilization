@@ -135,10 +135,10 @@ class UnicycleStabilizer:
         x_d, y_d, theta_d = desired_state
 
         # Quadratic Lyapunov function
-        V = (x - x_d)**2 +  (y - y_d)**2 + 1 * (theta - theta_d)**2
+        V = (x - x_d)**2 +  (y - y_d)**2 + 0.1 * (theta - theta_d)**2
 
         # Derivative of V
-        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 1 * (theta - theta_d)])
+        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 0.1 * (theta - theta_d)])
 
         # Control inputs
         v = cp.Variable()
@@ -247,10 +247,10 @@ class UnicycleStabilizer:
         x_d, y_d, theta_d = desired_state
 
         # Quadratic Lyapunov function
-        V = (x - x_d)**2 +  (y - y_d)**2 + 0.1*(theta - theta_d)**2
+        V = (x - x_d)**2 +  (y - y_d)**2 + 0.01*(theta - theta_d)**2
 
         # Derivative of V
-        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 0.1*(theta - theta_d)])
+        dVdstate = 2 * np.array([(x - x_d), (y - y_d), 0.01*(theta - theta_d)])
 
         # Control inputs
         v = cp.Variable()
