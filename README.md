@@ -1,6 +1,6 @@
 # CBF Stabilization
 
-This repository contains the implementations for the paper "Stabilization of Nonlinear Systems through Control Barrier Functions". The main idea is to use a Control Barrier Function (CBF), along with a weak candidate (quadratic) CLF to stabilize nonlinear systems.
+This repository contains the implementations for the paper "Stabilization of Nonlinear Systems through Control Barrier Functions". The main idea is to use a Control Barrier Function (CBF), along with a weak candidate (quadratic) Control Lyapunov Function (CLF) to stabilize nonlinear systems.
 
 
 ## Dependencies
