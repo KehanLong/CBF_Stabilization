@@ -12,6 +12,12 @@ To run the code, you will need to install the following packages:
 - CVXPY 1.4.1: [CVXPY Documentation](https://www.cvxpy.org/index.html)
 - Matplotlib 3.5.3: [Matplotlib Documentation](https://matplotlib.org/stable/index.html)
 
+You can install the required packages using the following command:
+```
+pip install python==3.9 numpy==1.26.0 cvxpy==1.4.1 matplotlib==3.5.3
+
+```
+
 ## How to Run
 
 To reproduce the provided examples, follow these steps:
