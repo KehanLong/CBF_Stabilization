@@ -2,7 +2,7 @@
 
 This repository contains the implementations for the paper "Stabilization of Nonlinear Systems through Control Barrier Functions", accepted to IEEE CDC 2024. 
 
-The main idea is to leverages control barrier functions (CBFs) and a weaker notion of control Lyapunov functions (CLFs) to stabilize general nonlinear systems, even when a valid CLF is difficult to find or does not exist. 
+The main idea is to leverage control barrier functions (CBFs) and a weaker notion of control Lyapunov functions (CLFs) to stabilize general nonlinear systems, even when a valid CLF is difficult to find or does not exist. 
 
 
 ## Dependencies
